@@ -1,5 +1,5 @@
-import { Component, ChangeDetectorRef, Input, Output, HostBinding, ChangeDetectionStrategy, 
-    EventEmitter, Renderer2, OnDestroy, ElementRef, AfterViewInit, NgZone } from '@angular/core';
+import { Component, ChangeDetectorRef, Input, Output, HostBinding, ChangeDetectionStrategy,
+    EventEmitter, Renderer2, OnDestroy, ElementRef, AfterViewInit, NgZone, HostListener } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/operator/debounceTime';
@@ -7,6 +7,7 @@ import 'rxjs/add/operator/debounceTime';
 import { IArea } from './../interface/IArea';
 import { IPoint } from './../interface/IPoint';
 import { SplitAreaDirective } from './splitArea.directive';
+import { debounce } from '../util/util';
 
 /**
  * angular-split
@@ -264,6 +265,9 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         return (this.direction === 'vertical') ? `${ this.getNbGutters() * this.gutterSize }px` : null;
     }
 
+    @HostListener('window:resize')
+    public onWindowResize = debounce(() => this.build(false, false), 250);
+
     public isViewInitialized: boolean = false;
     private isDragging: boolean = false;
     private draggingWithoutMove: boolean = false;
@@ -271,7 +275,7 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
 
     public readonly displayedAreas: Array<IArea> = [];
     private readonly hidedAreas: Array<IArea> = [];
-    
+
     private readonly dragListeners: Array<Function> = [];
     private readonly dragStartValues = {
         sizePixelContainer: 0,
@@ -279,6 +283,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         sizePixelB: 0,
         sizePercentA: 0,
         sizePercentB: 0,
+        minSizeA: 0,
+        minSizeB: 0,
     };
 
     constructor(private ngZone: NgZone,
@@ -412,10 +418,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         // If some real area sizes are less than gutterSize, 
         // set them to zero and dispatch size to others.
 
-        let percentToDispatch = 0;
-        
         // Get container pixel size
-        let containerSizePixel = this.getNbGutters() * this.gutterSize;
+        let containerSizePixel: number; // TODO: This is immediately overwritten
         if(this.direction === 'horizontal') {
             containerSizePixel = this.width ? this.width : this.elRef.nativeElement['offsetWidth'];
         }
@@ -423,22 +427,41 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
             containerSizePixel = this.height ? this.height : this.elRef.nativeElement['offsetHeight'];
         }
 
+        let percentToDispatch = 0;
+
         this.displayedAreas.forEach(area => {
-            if(area.size * containerSizePixel < this.gutterSize) {
+            const currentArea = area.size * containerSizePixel;
+            const neededArea = Math.max(currentArea, area.comp.minSize);
+            if(neededArea < this.gutterSize) {
                 percentToDispatch += area.size;
                 area.size = 0;
+            } else if (neededArea > currentArea) {
+                percentToDispatch -= (neededArea - currentArea) / containerSizePixel;
+                area.size = neededArea / containerSizePixel;
             }
         });
-        
-        if(percentToDispatch > 0 && this.displayedAreas.length > 0) {
-            const nbAreasNotZero = this.displayedAreas.filter(a => a.size !== 0).length;
 
-            if(nbAreasNotZero > 0) {
-                const percentToAdd = percentToDispatch / nbAreasNotZero;
-    
-                this.displayedAreas.filter(a => a.size !== 0).forEach(area => {
-                    area.size += percentToAdd;
+        if(percentToDispatch !== 0 && this.displayedAreas.length > 0) {
+            const areasNotZero = this.displayedAreas.filter(a => a.size !== 0);
+
+            if(areasNotZero.length > 0) {
+                const areasWithoutDefecit = this.displayedAreas.filter(a => {
+                    if (percentToDispatch < 0) {
+                        return ((a.size * containerSizePixel) + (percentToDispatch / areasNotZero.length)) > a.comp.minSize;
+                    }
+                    return a.size !== 0;
                 });
+                if (areasWithoutDefecit.length > 0) {
+                    const percentToAdd = percentToDispatch / areasWithoutDefecit.length;
+
+                    areasWithoutDefecit.forEach(area => {
+                        area.size += percentToAdd;
+                    });
+                }
+                else {
+                    // Just take what we need from the last one
+                    this.displayedAreas[this.displayedAreas.length - 1].size += percentToDispatch;
+                }
             }
             // All area sizes (container percentage) are less than guterSize,
             // It means containerSize < ngGutters * gutterSize
@@ -489,6 +512,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         this.dragStartValues.sizePixelB = areaB.comp.getSizePixel(prop);
         this.dragStartValues.sizePercentA = areaA.size;
         this.dragStartValues.sizePercentB = areaB.size;
+        this.dragStartValues.minSizeA = areaA.comp.minSize;
+        this.dragStartValues.minSizeB = areaB.comp.minSize;
 
         let start: IPoint;
         if(startEvent instanceof MouseEvent) {
@@ -560,7 +585,15 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
 
         let newSizePixelA = this.dragStartValues.sizePixelA - offsetPixel;
         let newSizePixelB = this.dragStartValues.sizePixelB + offsetPixel;
-        
+
+        if (newSizePixelA < this.dragStartValues.minSizeA) {
+            newSizePixelB -= (this.dragStartValues.minSizeA - newSizePixelA)
+            newSizePixelA = this.dragStartValues.minSizeA;
+        } else if (newSizePixelB < this.dragStartValues.minSizeB) {
+            newSizePixelA -= (this.dragStartValues.minSizeB - newSizePixelB)
+            newSizePixelB = this.dragStartValues.minSizeB;
+        }
+
         if(newSizePixelA < this.gutterSize && newSizePixelB < this.gutterSize) {
             // WTF.. get out of here!
             return;

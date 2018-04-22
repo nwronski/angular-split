@@ -9,6 +9,53 @@
  * @suppress {checkTypes} checked by tsc
  */
 /**
+ * Adapted from component/debounce
+ * @see {\@link https://github.com/component/debounce}
+ * @see {\@link http://unscriptable.com/2009/03/20/debouncing-javascript-methods/}
+ * @template T
+ * @param {?} func
+ * @param {?=} wait
+ * @return {?}
+ */
+function debounce(func, wait) {
+    if (wait === void 0) { wait = 100; }
+    var /** @type {?} */ timeout;
+    var /** @type {?} */ callable;
+    var /** @type {?} */ timestamp;
+    var /** @type {?} */ result;
+    /**
+     * @return {?}
+     */
+    function later() {
+        var /** @type {?} */ last = Date.now() - timestamp;
+        if (last < wait && last >= 0) {
+            timeout = setTimeout(later, wait - last);
+        }
+        else if (callable != null) {
+            timeout = null;
+            result = callable();
+            callable = null;
+        }
+    }
+    return function wrapped() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        callable = function () { return func.apply(void 0, args); };
+        timestamp = Date.now();
+        if (timeout == null) {
+            timeout = setTimeout(later, wait);
+        }
+        return result;
+    };
+}
+
+/**
+ * @fileoverview added by tsickle
+ * @suppress {checkTypes} checked by tsc
+ */
+/**
  * angular-split
  *
  * Areas size are set in percentage of the split container.
@@ -41,6 +88,7 @@
  */
 var SplitComponent = (function () {
     function SplitComponent(ngZone, elRef, cdRef, renderer) {
+        var _this = this;
         this.ngZone = ngZone;
         this.elRef = elRef;
         this.cdRef = cdRef;
@@ -61,6 +109,7 @@ var SplitComponent = (function () {
         this.gutterClick = new core.EventEmitter(false);
         this.transitionEndInternal = new Subject.Subject();
         this.transitionEnd = (/** @type {?} */ (this.transitionEndInternal.asObservable())).debounceTime(20);
+        this.onWindowResize = debounce(function () { return _this.build(false, false); }, 250);
         this.isViewInitialized = false;
         this.isDragging = false;
         this.draggingWithoutMove = false;
@@ -74,6 +123,8 @@ var SplitComponent = (function () {
             sizePixelB: 0,
             sizePercentA: 0,
             sizePercentB: 0,
+            minSizeA: 0,
+            minSizeB: 0,
         };
     }
     Object.defineProperty(SplitComponent.prototype, "direction", {
@@ -482,28 +533,46 @@ var SplitComponent = (function () {
         // ¤
         // If some real area sizes are less than gutterSize,
         // set them to zero and dispatch size to others.
-        var /** @type {?} */ percentToDispatch = 0;
         // Get container pixel size
-        var /** @type {?} */ containerSizePixel = this.getNbGutters() * this.gutterSize;
+        var /** @type {?} */ containerSizePixel; // TODO: This is immediately overwritten
         if (this.direction === 'horizontal') {
             containerSizePixel = this.width ? this.width : this.elRef.nativeElement['offsetWidth'];
         }
         else {
             containerSizePixel = this.height ? this.height : this.elRef.nativeElement['offsetHeight'];
         }
+        var /** @type {?} */ percentToDispatch = 0;
         this.displayedAreas.forEach(function (area) {
-            if (area.size * containerSizePixel < _this.gutterSize) {
+            var /** @type {?} */ currentArea = area.size * containerSizePixel;
+            var /** @type {?} */ neededArea = Math.max(currentArea, area.comp.minSize);
+            if (neededArea < _this.gutterSize) {
                 percentToDispatch += area.size;
                 area.size = 0;
             }
+            else if (neededArea > currentArea) {
+                percentToDispatch -= (neededArea - currentArea) / containerSizePixel;
+                area.size = neededArea / containerSizePixel;
+            }
         });
-        if (percentToDispatch > 0 && this.displayedAreas.length > 0) {
-            var /** @type {?} */ nbAreasNotZero = this.displayedAreas.filter(function (a) { return a.size !== 0; }).length;
-            if (nbAreasNotZero > 0) {
-                var /** @type {?} */ percentToAdd_1 = percentToDispatch / nbAreasNotZero;
-                this.displayedAreas.filter(function (a) { return a.size !== 0; }).forEach(function (area) {
-                    area.size += percentToAdd_1;
+        if (percentToDispatch !== 0 && this.displayedAreas.length > 0) {
+            var /** @type {?} */ areasNotZero_1 = this.displayedAreas.filter(function (a) { return a.size !== 0; });
+            if (areasNotZero_1.length > 0) {
+                var /** @type {?} */ areasWithoutDefecit = this.displayedAreas.filter(function (a) {
+                    if (percentToDispatch < 0) {
+                        return ((a.size * containerSizePixel) + (percentToDispatch / areasNotZero_1.length)) > a.comp.minSize;
+                    }
+                    return a.size !== 0;
                 });
+                if (areasWithoutDefecit.length > 0) {
+                    var /** @type {?} */ percentToAdd_1 = percentToDispatch / areasWithoutDefecit.length;
+                    areasWithoutDefecit.forEach(function (area) {
+                        area.size += percentToAdd_1;
+                    });
+                }
+                else {
+                    // Just take what we need from the last one
+                    this.displayedAreas[this.displayedAreas.length - 1].size += percentToDispatch;
+                }
             }
             else {
                 this.displayedAreas[this.displayedAreas.length - 1].size = 1;
@@ -562,6 +631,8 @@ var SplitComponent = (function () {
         this.dragStartValues.sizePixelB = areaB.comp.getSizePixel(prop);
         this.dragStartValues.sizePercentA = areaA.size;
         this.dragStartValues.sizePercentB = areaB.size;
+        this.dragStartValues.minSizeA = areaA.comp.minSize;
+        this.dragStartValues.minSizeB = areaB.comp.minSize;
         var /** @type {?} */ start;
         if (startEvent instanceof MouseEvent) {
             start = {
@@ -648,6 +719,14 @@ var SplitComponent = (function () {
         }
         var /** @type {?} */ newSizePixelA = this.dragStartValues.sizePixelA - offsetPixel;
         var /** @type {?} */ newSizePixelB = this.dragStartValues.sizePixelB + offsetPixel;
+        if (newSizePixelA < this.dragStartValues.minSizeA) {
+            newSizePixelB -= (this.dragStartValues.minSizeA - newSizePixelA);
+            newSizePixelA = this.dragStartValues.minSizeA;
+        }
+        else if (newSizePixelB < this.dragStartValues.minSizeB) {
+            newSizePixelA -= (this.dragStartValues.minSizeB - newSizePixelB);
+            newSizePixelB = this.dragStartValues.minSizeB;
+        }
         if (newSizePixelA < this.gutterSize && newSizePixelB < this.gutterSize) {
             // WTF.. get out of here!
             return;
@@ -783,6 +862,7 @@ var SplitComponent = (function () {
         "cssHeight": [{ type: core.HostBinding, args: ['style.height',] },],
         "cssMinwidth": [{ type: core.HostBinding, args: ['style.min-width',] },],
         "cssMinheight": [{ type: core.HostBinding, args: ['style.min-height',] },],
+        "onWindowResize": [{ type: core.HostListener, args: ['window:resize',] },],
     };
     return SplitComponent;
 }());
@@ -802,6 +882,8 @@ var SplitAreaDirective = (function () {
         this._minSize = 0;
         this._visible = true;
         this.lockListeners = [];
+        this._minWidth = null;
+        this._minHeight = null;
     }
     Object.defineProperty(SplitAreaDirective.prototype, "order", {
         get: /**
@@ -854,8 +936,28 @@ var SplitAreaDirective = (function () {
          */
         function (v) {
             v = Number(v);
-            this._minSize = (!isNaN(v) && v > 0 && v < 100) ? v / 100 : 0;
-            this.split.updateArea(this, false, true);
+            this._minSize = !isNaN(v) ? v : 0;
+            this.split.updateArea(this, false, false);
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(SplitAreaDirective.prototype, "minWidth", {
+        get: /**
+         * @return {?}
+         */
+        function () {
+            return this._minWidth;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(SplitAreaDirective.prototype, "minHeight", {
+        get: /**
+         * @return {?}
+         */
+        function () {
+            return this._minHeight;
         },
         enumerable: true,
         configurable: true
@@ -939,10 +1041,14 @@ var SplitAreaDirective = (function () {
         if (direction === 'horizontal') {
             this.renderer.setStyle(this.elRef.nativeElement, 'height', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'width');
+            this._minWidth = isVisible ? this.minSize : null;
+            this._minHeight = null;
         }
         else {
             this.renderer.setStyle(this.elRef.nativeElement, 'width', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'height');
+            this._minWidth = null;
+            this._minHeight = isVisible ? this.minSize : null;
         }
     };
     /**
@@ -1062,6 +1168,8 @@ var SplitAreaDirective = (function () {
         "order": [{ type: core.Input },],
         "size": [{ type: core.Input },],
         "minSize": [{ type: core.Input },],
+        "minWidth": [{ type: core.HostBinding, args: ['style.min-width.px',] },],
+        "minHeight": [{ type: core.HostBinding, args: ['style.min-height.px',] },],
         "visible": [{ type: core.Input },],
     };
     return SplitAreaDirective;

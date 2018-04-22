@@ -1,4 +1,4 @@
-import { Directive, Input, ElementRef, Renderer2, OnInit, OnDestroy, NgZone } from '@angular/core';
+import { Directive, Input, ElementRef, Renderer2, OnInit, OnDestroy, NgZone, HostBinding } from '@angular/core';
 
 import { SplitComponent } from './split.component';
 
@@ -41,13 +41,22 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
     @Input() set minSize(v: number) {
         v = Number(v);
-        this._minSize = (!isNaN(v) && v > 0 && v < 100) ? v/100 : 0;
+        this._minSize = !isNaN(v) ? v : 0;
 
-        this.split.updateArea(this, false, true);
+        this.split.updateArea(this, false, false);
     }
     
     get minSize(): number {
         return this._minSize;
+    }
+    
+    @HostBinding('style.min-width.px')
+    get minWidth() {
+        return this._minWidth;
+    }
+    @HostBinding('style.min-height.px')
+    get minHeight() {
+        return this._minHeight;
     }
 
     ////
@@ -74,6 +83,8 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
     private transitionListener: Function;
     private readonly lockListeners: Array<Function> = [];
+    private _minWidth: number | null = null;
+    private _minHeight: number | null = null;
 
     constructor(private ngZone: NgZone,
                 private elRef: ElementRef,
@@ -114,10 +125,14 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
         if(direction === 'horizontal') {
             this.renderer.setStyle(this.elRef.nativeElement, 'height', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'width');
+            this._minWidth = isVisible ? this.minSize : null;
+            this._minHeight = null;
         }
         else {
             this.renderer.setStyle(this.elRef.nativeElement, 'width', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'height');
+            this._minWidth = null;
+            this._minHeight = isVisible ? this.minSize : null;
         }
     }
 
