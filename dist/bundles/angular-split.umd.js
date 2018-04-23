@@ -9,53 +9,6 @@
  * @suppress {checkTypes} checked by tsc
  */
 /**
- * Adapted from component/debounce
- * @see {\@link https://github.com/component/debounce}
- * @see {\@link http://unscriptable.com/2009/03/20/debouncing-javascript-methods/}
- * @template T
- * @param {?} func
- * @param {?=} wait
- * @return {?}
- */
-function debounce(func, wait) {
-    if (wait === void 0) { wait = 100; }
-    var /** @type {?} */ timeout;
-    var /** @type {?} */ callable;
-    var /** @type {?} */ timestamp;
-    var /** @type {?} */ result;
-    /**
-     * @return {?}
-     */
-    function later() {
-        var /** @type {?} */ last = Date.now() - timestamp;
-        if (last < wait && last >= 0) {
-            timeout = setTimeout(later, wait - last);
-        }
-        else if (callable != null) {
-            timeout = null;
-            result = callable();
-            callable = null;
-        }
-    }
-    return function wrapped() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i] = arguments[_i];
-        }
-        callable = function () { return func.apply(void 0, args); };
-        timestamp = Date.now();
-        if (timeout == null) {
-            timeout = setTimeout(later, wait);
-        }
-        return result;
-    };
-}
-
-/**
- * @fileoverview added by tsickle
- * @suppress {checkTypes} checked by tsc
- */
-/**
  * angular-split
  *
  * Areas size are set in percentage of the split container.
@@ -109,7 +62,11 @@ var SplitComponent = (function () {
         this.gutterClick = new core.EventEmitter(false);
         this.transitionEndInternal = new Subject.Subject();
         this.transitionEnd = (/** @type {?} */ (this.transitionEndInternal.asObservable())).debounceTime(20);
-        this.onWindowResize = debounce(function () { return _this.build(false, false); }, 250);
+        this.windowResizeInternal = new Subject.Subject();
+        this.windowResize = this.windowResizeInternal
+            .asObservable()
+            .debounceTime(80)
+            .subscribe(function () { return _this.build(false, false); });
         this.isViewInitialized = false;
         this.isDragging = false;
         this.draggingWithoutMove = false;
@@ -370,6 +327,15 @@ var SplitComponent = (function () {
         enumerable: true,
         configurable: true
     });
+    /**
+     * @return {?}
+     */
+    SplitComponent.prototype.onWindowResize = /**
+     * @return {?}
+     */
+    function () {
+        this.windowResizeInternal.next();
+    };
     /**
      * @return {?}
      */
@@ -825,6 +791,7 @@ var SplitComponent = (function () {
      */
     function () {
         this.stopDragging();
+        this.windowResize.unsubscribe();
     };
     SplitComponent.decorators = [
         { type: core.Component, args: [{
@@ -1041,14 +1008,10 @@ var SplitAreaDirective = (function () {
         if (direction === 'horizontal') {
             this.renderer.setStyle(this.elRef.nativeElement, 'height', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'width');
-            this._minWidth = isVisible ? this.minSize : null;
-            this._minHeight = null;
         }
         else {
             this.renderer.setStyle(this.elRef.nativeElement, 'width', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'height');
-            this._minWidth = null;
-            this._minHeight = isVisible ? this.minSize : null;
         }
     };
     /**

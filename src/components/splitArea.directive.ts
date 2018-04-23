@@ -125,14 +125,10 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
         if(direction === 'horizontal') {
             this.renderer.setStyle(this.elRef.nativeElement, 'height', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'width');
-            this._minWidth = isVisible ? this.minSize : null;
-            this._minHeight = null;
         }
         else {
             this.renderer.setStyle(this.elRef.nativeElement, 'width', '100%');
             this.renderer.removeStyle(this.elRef.nativeElement, 'height');
-            this._minWidth = null;
-            this._minHeight = isVisible ? this.minSize : null;
         }
     }
 

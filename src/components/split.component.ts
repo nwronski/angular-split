@@ -2,12 +2,12 @@ import { Component, ChangeDetectorRef, Input, Output, HostBinding, ChangeDetecti
     EventEmitter, Renderer2, OnDestroy, ElementRef, AfterViewInit, NgZone, HostListener } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { Subscription } from 'rxjs/Subscription';
 import 'rxjs/add/operator/debounceTime';
 
 import { IArea } from './../interface/IArea';
 import { IPoint } from './../interface/IPoint';
 import { SplitAreaDirective } from './splitArea.directive';
-import { debounce } from '../util/util';
 
 /**
  * angular-split
@@ -265,8 +265,15 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         return (this.direction === 'vertical') ? `${ this.getNbGutters() * this.gutterSize }px` : null;
     }
 
+    private windowResizeInternal: Subject<void> = new Subject<void>();
     @HostListener('window:resize')
-    public onWindowResize = debounce(() => this.build(false, false), 250);
+    onWindowResize() {
+        this.windowResizeInternal.next();
+    }
+    public windowResize: Subscription = this.windowResizeInternal
+        .asObservable()
+        .debounceTime(80)
+        .subscribe(() => this.build(false, false));
 
     public isViewInitialized: boolean = false;
     private isDragging: boolean = false;
@@ -688,5 +695,6 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
 
     public ngOnDestroy(): void {
         this.stopDragging();
+        this.windowResize.unsubscribe();
     }
 }
