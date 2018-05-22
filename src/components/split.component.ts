@@ -462,9 +462,14 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
         this.displayedAreas.forEach(area => {
             const currentArea = area.size * containerSizePixel;
             const neededArea = Math.max(currentArea, area.comp.minSize);
-            if(neededArea < this.gutterSize) {
+            if(area.comp.minSize <= 0 && currentArea < this.gutterSize) {
                 percentToDispatch += area.size;
                 area.size = 0;
+            } else if (!area.comp.expand) {
+                // Always set a non-expand area to the minSize
+                const minimumSize = area.comp.minSize / containerSizePixel;
+                percentToDispatch += (area.size - minimumSize);
+                area.size = minimumSize;
             } else if (neededArea > currentArea) {
                 percentToDispatch -= (neededArea - currentArea) / containerSizePixel;
                 area.size = neededArea / containerSizePixel;
@@ -479,7 +484,7 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
                     if (percentToDispatch < 0) {
                         return ((a.size * containerSizePixel) + (percentToDispatch / areasNotZero.length)) > a.comp.minSize;
                     }
-                    return a.size !== 0;
+                    return a.comp.expand && a.size !== 0;
                 });
                 if (areasWithoutDefecit.length > 0) {
                     const percentToAdd = percentToDispatch / areasWithoutDefecit.length;

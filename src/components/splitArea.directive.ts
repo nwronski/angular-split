@@ -15,7 +15,7 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
         this.split.updateArea(this, true, false);
     }
-    
+
     get order(): number | null {
         return this._order;
     }
@@ -30,9 +30,24 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
         this.split.updateArea(this, false, true);
     }
-    
+
     get size(): number | null {
         return this._size;
+    }
+
+    ////
+
+    private _expand: boolean = true;
+
+    @Input() set expand(v: boolean) {
+        v = (typeof(v) === 'boolean') ? v : (v === 'false' ? false : true);
+        this._expand = v;
+
+        this.split.updateArea(this, false, false);
+    }
+
+    get expand(): boolean {
+        return this._expand;
     }
 
     ////
@@ -45,18 +60,9 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
         this.split.updateArea(this, false, false);
     }
-    
+
     get minSize(): number {
         return this._minSize;
-    }
-    
-    @HostBinding('style.min-width.px')
-    get minWidth() {
-        return this._minWidth;
-    }
-    @HostBinding('style.min-height.px')
-    get minHeight() {
-        return this._minHeight;
     }
 
     ////
@@ -67,7 +73,7 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
         v = (typeof(v) === 'boolean') ? v : (v === 'false' ? false : true);
         this._visible = v;
 
-        if(this.visible) { 
+        if(this.visible) {
             this.split.showArea(this);
         }
         else {
@@ -83,8 +89,6 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
     private transitionListener: Function;
     private readonly lockListeners: Array<Function> = [];
-    private _minWidth: number | null = null;
-    private _minHeight: number | null = null;
 
     constructor(private ngZone: NgZone,
                 private elRef: ElementRef,
@@ -111,7 +115,7 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
             this.setStyleFlexbasis('0', isDragging);
             this.renderer.setStyle(this.elRef.nativeElement, 'overflow-x', 'hidden');
             this.renderer.setStyle(this.elRef.nativeElement, 'overflow-y', 'hidden');
-            
+
             if(direction === 'vertical') {
                 this.renderer.setStyle(this.elRef.nativeElement, 'max-width', '0');
             }
@@ -135,7 +139,7 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
     public setStyleOrder(value: number): void {
         this.renderer.setStyle(this.elRef.nativeElement, 'order', value);
     }
-    
+
     public setStyleFlexbasis(value: string, isDragging: boolean): void {
         // If component not yet initialized or gutter being dragged, disable transition
         if(this.split.isViewInitialized === false || isDragging === true) {
@@ -148,7 +152,7 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
 
         this.renderer.setStyle(this.elRef.nativeElement, 'flex-basis', value);
     }
-    
+
     private setStyleTransition(useTransition: boolean): void {
         if(useTransition) {
             this.renderer.setStyle(this.elRef.nativeElement, 'transition', `flex-basis 0.3s`);
@@ -157,14 +161,14 @@ export class SplitAreaDirective implements OnInit, OnDestroy {
             this.renderer.removeStyle(this.elRef.nativeElement, 'transition');
         }
     }
-    
+
     private onTransitionEnd(event: TransitionEvent): void {
         // Limit only flex-basis transition to trigger the event
         if(event.propertyName === 'flex-basis') {
             this.split.notify('transitionEnd');
         }
     }
-    
+
     public lockEvents(): void {
         this.ngZone.runOutsideAngular(() => {
             this.lockListeners.push( this.renderer.listen(this.elRef.nativeElement, 'selectstart', (e: Event) => false) );
