@@ -9,16 +9,14 @@ export declare class SplitAreaDirective implements OnInit, OnDestroy {
     order: number | null;
     private _size;
     size: number | null;
+    private _expand;
+    expand: boolean;
     private _minSize;
     minSize: number;
-    readonly minWidth: number | null;
-    readonly minHeight: number | null;
     private _visible;
     visible: boolean;
     private transitionListener;
     private readonly lockListeners;
-    private _minWidth;
-    private _minHeight;
     constructor(ngZone: NgZone, elRef: ElementRef, renderer: Renderer2, split: SplitComponent);
     ngOnInit(): void;
     getSizePixel(prop: 'offsetWidth' | 'offsetHeight'): number;

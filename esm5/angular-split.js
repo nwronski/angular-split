@@ -52,6 +52,7 @@ var SplitComponent = (function () {
         this._height = null;
         this._gutterSize = 11;
         this._gutterColor = '';
+        this._gutterDisabledColor = '';
         this._gutterImageH = '';
         this._gutterImageV = '';
         this._dir = 'ltr';
@@ -214,6 +215,25 @@ var SplitComponent = (function () {
          */
         function (v) {
             this._gutterColor = (typeof v === 'string' && v !== '') ? v : '';
+            // Force repaint if modified from TS class (instead of the template)
+            this.cdRef.markForCheck();
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(SplitComponent.prototype, "gutterDisabledColor", {
+        get: /**
+         * @return {?}
+         */
+        function () {
+            return this._gutterDisabledColor;
+        },
+        set: /**
+         * @param {?} v
+         * @return {?}
+         */
+        function (v) {
+            this._gutterDisabledColor = (typeof v === 'string' && v !== '') ? v : '';
             // Force repaint if modified from TS class (instead of the template)
             this.cdRef.markForCheck();
         },
@@ -510,9 +530,15 @@ var SplitComponent = (function () {
         this.displayedAreas.forEach(function (area) {
             var /** @type {?} */ currentArea = area.size * containerSizePixel;
             var /** @type {?} */ neededArea = Math.max(currentArea, area.comp.minSize);
-            if (neededArea < _this.gutterSize) {
+            if (area.comp.minSize <= 0 && currentArea < _this.gutterSize) {
                 percentToDispatch += area.size;
                 area.size = 0;
+            }
+            else if (!area.comp.expand) {
+                // Always set a non-expand area to the minSize
+                var /** @type {?} */ minimumSize = area.comp.minSize / containerSizePixel;
+                percentToDispatch += (area.size - minimumSize);
+                area.size = minimumSize;
             }
             else if (neededArea > currentArea) {
                 percentToDispatch -= (neededArea - currentArea) / containerSizePixel;
@@ -526,7 +552,7 @@ var SplitComponent = (function () {
                     if (percentToDispatch < 0) {
                         return ((a.size * containerSizePixel) + (percentToDispatch / areasNotZero_1.length)) > a.comp.minSize;
                     }
-                    return a.size !== 0;
+                    return a.comp.expand && a.size !== 0;
                 });
                 if (areasWithoutDefecit.length > 0) {
                     var /** @type {?} */ percentToAdd_1 = percentToDispatch / areasWithoutDefecit.length;
@@ -796,8 +822,8 @@ var SplitComponent = (function () {
         { type: Component, args: [{
                     selector: 'split',
                     changeDetection: ChangeDetectionStrategy.OnPush,
-                    styles: ["\n        :host {\n            display: flex;\n            flex-wrap: nowrap;\n            justify-content: flex-start;\n            align-items: stretch;\n            overflow: hidden;\n            /* \n                Important to keep following rules even if overrided later by 'HostBinding' \n                because if [width] & [height] not provided, when build() is executed,\n                'HostBinding' hasn't been applied yet so code:\n                this.elRef.nativeElement[\"offsetHeight\"] gives wrong value!  \n             */\n            width: 100%;\n            height: 100%;   \n        }\n\n        split-gutter {\n            flex-grow: 0;\n            flex-shrink: 0;\n            background-position: center center;\n            background-repeat: no-repeat;\n        }\n    "],
-                    template: "\n        <ng-content></ng-content>\n        <ng-template ngFor let-area [ngForOf]=\"displayedAreas\" let-index=\"index\" let-last=\"last\">\n            <split-gutter *ngIf=\"last === false\" \n                          [order]=\"index*2+1\"\n                          [direction]=\"direction\"\n                          [useTransition]=\"useTransition\"\n                          [size]=\"gutterSize\"\n                          [color]=\"gutterColor\"\n                          [imageH]=\"gutterImageH\"\n                          [imageV]=\"gutterImageV\"\n                          [disabled]=\"disabled\"\n                          (mousedown)=\"startDragging($event, index*2+1, index+1)\"\n                          (touchstart)=\"startDragging($event, index*2+1, index+1)\"></split-gutter>\n        </ng-template>",
+                    styles: ["\n        :host {\n            display: flex;\n            flex-wrap: nowrap;\n            justify-content: flex-start;\n            align-items: stretch;\n            overflow: hidden;\n            /*\n                Important to keep following rules even if overrided later by 'HostBinding'\n                because if [width] & [height] not provided, when build() is executed,\n                'HostBinding' hasn't been applied yet so code:\n                this.elRef.nativeElement[\"offsetHeight\"] gives wrong value!\n             */\n            width: 100%;\n            height: 100%;\n        }\n\n        split-gutter {\n            flex-grow: 0;\n            flex-shrink: 0;\n            background-position: center center;\n            background-repeat: no-repeat;\n        }\n\n        :host:not(.is-disabled) > split-gutter:hover,\n        :host:not(.is-disabled) > split-gutter:active {\n            background-color: #137bc2 !important;\n        }\n    "],
+                    template: "\n        <ng-content></ng-content>\n        <ng-template ngFor let-area [ngForOf]=\"displayedAreas\" let-index=\"index\" let-last=\"last\">\n            <split-gutter *ngIf=\"last === false\"\n                          [order]=\"index*2+1\"\n                          [direction]=\"direction\"\n                          [useTransition]=\"useTransition\"\n                          [size]=\"gutterSize\"\n                          [color]=\"gutterColor\"\n                          [disabledColor]=\"gutterDisabledColor\"\n                          [imageH]=\"gutterImageH\"\n                          [imageV]=\"gutterImageV\"\n                          [disabled]=\"disabled\"\n                          (mousedown)=\"startDragging($event, index*2+1, index+1)\"\n                          (touchstart)=\"startDragging($event, index*2+1, index+1)\"></split-gutter>\n        </ng-template>",
                 },] },
     ];
     /** @nocollapse */
@@ -810,11 +836,12 @@ var SplitComponent = (function () {
     SplitComponent.propDecorators = {
         "direction": [{ type: Input },],
         "useTransition": [{ type: Input },],
-        "disabled": [{ type: Input },],
+        "disabled": [{ type: Input }, { type: HostBinding, args: ['class.is-disabled',] },],
         "width": [{ type: Input },],
         "height": [{ type: Input },],
         "gutterSize": [{ type: Input },],
         "gutterColor": [{ type: Input },],
+        "gutterDisabledColor": [{ type: Input },],
         "gutterImageH": [{ type: Input },],
         "gutterImageV": [{ type: Input },],
         "dir": [{ type: Input },],
@@ -845,11 +872,10 @@ var SplitAreaDirective = (function () {
         this.split = split;
         this._order = null;
         this._size = null;
+        this._expand = true;
         this._minSize = 0;
         this._visible = true;
         this.lockListeners = [];
-        this._minWidth = null;
-        this._minHeight = null;
     }
     Object.defineProperty(SplitAreaDirective.prototype, "order", {
         get: /**
@@ -889,6 +915,25 @@ var SplitAreaDirective = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(SplitAreaDirective.prototype, "expand", {
+        get: /**
+         * @return {?}
+         */
+        function () {
+            return this._expand;
+        },
+        set: /**
+         * @param {?} v
+         * @return {?}
+         */
+        function (v) {
+            v = (typeof (v) === 'boolean') ? v : (v === 'false' ? false : true);
+            this._expand = v;
+            this.split.updateArea(this, false, false);
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(SplitAreaDirective.prototype, "minSize", {
         get: /**
          * @return {?}
@@ -904,26 +949,6 @@ var SplitAreaDirective = (function () {
             v = Number(v);
             this._minSize = !isNaN(v) ? v : 0;
             this.split.updateArea(this, false, false);
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(SplitAreaDirective.prototype, "minWidth", {
-        get: /**
-         * @return {?}
-         */
-        function () {
-            return this._minWidth;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(SplitAreaDirective.prototype, "minHeight", {
-        get: /**
-         * @return {?}
-         */
-        function () {
-            return this._minHeight;
         },
         enumerable: true,
         configurable: true
@@ -1129,9 +1154,8 @@ var SplitAreaDirective = (function () {
     SplitAreaDirective.propDecorators = {
         "order": [{ type: Input },],
         "size": [{ type: Input },],
+        "expand": [{ type: Input },],
         "minSize": [{ type: Input },],
-        "minWidth": [{ type: HostBinding, args: ['style.min-width.px',] },],
-        "minHeight": [{ type: HostBinding, args: ['style.min-height.px',] },],
         "visible": [{ type: Input },],
     };
     return SplitAreaDirective;
@@ -1229,6 +1253,24 @@ var SplitGutterDirective = (function () {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(SplitGutterDirective.prototype, "disabledColor", {
+        get: /**
+         * @return {?}
+         */
+        function () {
+            return this._disabledColor;
+        },
+        set: /**
+         * @param {?} v
+         * @return {?}
+         */
+        function (v) {
+            this._disabledColor = v;
+            this.refreshStyle();
+        },
+        enumerable: true,
+        configurable: true
+    });
     Object.defineProperty(SplitGutterDirective.prototype, "imageH", {
         get: /**
          * @return {?}
@@ -1293,7 +1335,12 @@ var SplitGutterDirective = (function () {
         this.renderer.setStyle(this.elRef.nativeElement, 'flex-basis', this.size + "px");
         // fix safari bug about gutter height when direction is horizontal
         this.renderer.setStyle(this.elRef.nativeElement, 'height', (this.direction === 'vertical') ? this.size + "px" : "100%");
-        this.renderer.setStyle(this.elRef.nativeElement, 'background-color', (this.color !== '') ? this.color : "#eeeeee");
+        if (!this.disabled) {
+            this.renderer.setStyle(this.elRef.nativeElement, 'background-color', (this.color !== '') ? this.color : "#eeeeee");
+        }
+        else {
+            this.renderer.setStyle(this.elRef.nativeElement, 'background-color', (this.disabledColor !== '') ? this.disabledColor : "#424242");
+        }
         var /** @type {?} */ state = (this.disabled === true) ? 'disabled' : this.direction;
         this.renderer.setStyle(this.elRef.nativeElement, 'background-image', this.getImage(state));
         this.renderer.setStyle(this.elRef.nativeElement, 'cursor', this.getCursor(state));
@@ -1350,6 +1397,7 @@ var SplitGutterDirective = (function () {
         "useTransition": [{ type: Input },],
         "size": [{ type: Input },],
         "color": [{ type: Input },],
+        "disabledColor": [{ type: Input },],
         "imageH": [{ type: Input },],
         "imageV": [{ type: Input },],
         "disabled": [{ type: Input },],

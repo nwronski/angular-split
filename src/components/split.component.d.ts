@@ -54,6 +54,8 @@ export declare class SplitComponent implements AfterViewInit, OnDestroy {
     gutterSize: number;
     private _gutterColor;
     gutterColor: string;
+    private _gutterDisabledColor;
+    gutterDisabledColor: string;
     private _gutterImageH;
     gutterImageH: string;
     private _gutterImageV;
