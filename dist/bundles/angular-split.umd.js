@@ -40,12 +40,13 @@
  *
  */
 var SplitComponent = (function () {
-    function SplitComponent(ngZone, elRef, cdRef, renderer) {
+    function SplitComponent(ngZone, elRef, cdRef, renderer, docRef /* Document */) {
         var _this = this;
         this.ngZone = ngZone;
         this.elRef = elRef;
         this.cdRef = cdRef;
         this.renderer = renderer;
+        this.docRef = docRef;
         this._direction = 'horizontal';
         this._useTransition = false;
         this._disabled = false;
@@ -648,6 +649,7 @@ var SplitComponent = (function () {
         areaA.comp.lockEvents();
         areaB.comp.lockEvents();
         this.isDragging = true;
+        this.renderer.addClass(this.docRef.body, 'is-dragging');
         this.notify('start');
     };
     /**
@@ -785,6 +787,7 @@ var SplitComponent = (function () {
         }
         this.isDragging = false;
         this.draggingWithoutMove = false;
+        this.renderer.removeClass(this.docRef.body, 'is-dragging');
     };
     /**
      * @param {?} type
@@ -833,6 +836,7 @@ var SplitComponent = (function () {
         { type: core.ElementRef, },
         { type: core.ChangeDetectorRef, },
         { type: core.Renderer2, },
+        { type: undefined, decorators: [{ type: core.Inject, args: [common.DOCUMENT,] },] },
     ]; };
     SplitComponent.propDecorators = {
         "direction": [{ type: core.Input },],

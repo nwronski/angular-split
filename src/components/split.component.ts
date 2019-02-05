@@ -1,5 +1,7 @@
+import { DOCUMENT } from '@angular/common';
 import { Component, ChangeDetectorRef, Input, Output, HostBinding, ChangeDetectionStrategy,
-    EventEmitter, Renderer2, OnDestroy, ElementRef, AfterViewInit, NgZone, HostListener } from '@angular/core';
+    EventEmitter, Renderer2, OnDestroy, ElementRef, AfterViewInit, NgZone, HostListener,
+    Inject } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { Subscription } from 'rxjs/Subscription';
@@ -320,7 +322,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
     constructor(private ngZone: NgZone,
                 private elRef: ElementRef,
                 private cdRef: ChangeDetectorRef,
-                private renderer: Renderer2) {}
+                private renderer: Renderer2,
+                @Inject(DOCUMENT) private docRef: any /* Document */) {}
 
     public ngAfterViewInit() {
         this.isViewInitialized = true;
@@ -577,6 +580,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
 
         this.isDragging = true;
 
+        this.renderer.addClass(this.docRef.body, 'is-dragging');
+
         this.notify('start');
     }
 
@@ -697,6 +702,8 @@ export class SplitComponent implements AfterViewInit, OnDestroy {
 
         this.isDragging = false;
         this.draggingWithoutMove = false;
+
+        this.renderer.removeClass(this.docRef.body, 'is-dragging');
     }
 
 
