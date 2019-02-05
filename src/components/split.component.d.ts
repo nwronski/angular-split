@@ -40,6 +40,7 @@ export declare class SplitComponent implements AfterViewInit, OnDestroy {
     private elRef;
     private cdRef;
     private renderer;
+    private docRef;
     private _direction;
     direction: 'horizontal' | 'vertical';
     private _useTransition;
@@ -96,7 +97,7 @@ export declare class SplitComponent implements AfterViewInit, OnDestroy {
     private readonly hidedAreas;
     private readonly dragListeners;
     private readonly dragStartValues;
-    constructor(ngZone: NgZone, elRef: ElementRef, cdRef: ChangeDetectorRef, renderer: Renderer2);
+    constructor(ngZone: NgZone, elRef: ElementRef, cdRef: ChangeDetectorRef, renderer: Renderer2, docRef: any);
     ngAfterViewInit(): void;
     private getNbGutters();
     addArea(comp: SplitAreaDirective): void;

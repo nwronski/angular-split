@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Directive, ElementRef, EventEmitter, HostBinding, HostListener, Input, NgModule, NgZone, Output, Renderer2 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Directive, ElementRef, EventEmitter, HostBinding, HostListener, Inject, Input, NgModule, NgZone, Output, Renderer2 } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { Subject as Subject$1 } from 'rxjs/Subject';
 import 'rxjs/add/operator/debounceTime';
 
@@ -39,12 +39,13 @@ import 'rxjs/add/operator/debounceTime';
  *
  */
 var SplitComponent = (function () {
-    function SplitComponent(ngZone, elRef, cdRef, renderer) {
+    function SplitComponent(ngZone, elRef, cdRef, renderer, docRef /* Document */) {
         var _this = this;
         this.ngZone = ngZone;
         this.elRef = elRef;
         this.cdRef = cdRef;
         this.renderer = renderer;
+        this.docRef = docRef;
         this._direction = 'horizontal';
         this._useTransition = false;
         this._disabled = false;
@@ -647,6 +648,7 @@ var SplitComponent = (function () {
         areaA.comp.lockEvents();
         areaB.comp.lockEvents();
         this.isDragging = true;
+        this.renderer.addClass(this.docRef.body, 'is-dragging');
         this.notify('start');
     };
     /**
@@ -784,6 +786,7 @@ var SplitComponent = (function () {
         }
         this.isDragging = false;
         this.draggingWithoutMove = false;
+        this.renderer.removeClass(this.docRef.body, 'is-dragging');
     };
     /**
      * @param {?} type
@@ -832,6 +835,7 @@ var SplitComponent = (function () {
         { type: ElementRef, },
         { type: ChangeDetectorRef, },
         { type: Renderer2, },
+        { type: undefined, decorators: [{ type: Inject, args: [DOCUMENT,] },] },
     ]; };
     SplitComponent.propDecorators = {
         "direction": [{ type: Input },],
